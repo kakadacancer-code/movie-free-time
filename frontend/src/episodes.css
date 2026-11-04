@@ -1,0 +1,25 @@
+/* Episodes: admin manager + public episode picker */
+.episode-manager{display:grid;gap:14px}
+.episode-list{display:grid;gap:8px}
+.episode-row{display:grid;grid-template-columns:70px minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px;border:1px solid #303951;border-radius:10px;background:#141a2a}
+.episode-row input,.episode-add input{border:1px solid #303951;border-radius:9px;background:#111728;color:#e9ecf8;padding:9px 10px;width:100%;min-height:40px;font-size:12px}
+.episode-row input:focus,.episode-add input:focus{border-color:#a28afc}
+.episode-row .episode-meta{grid-column:1 / -1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:#8d98af}
+.episode-row .episode-meta .ok{color:#75deb4}
+.episode-row .episode-meta .none{color:#edd48d}
+.episode-actions{display:flex;gap:4px;align-items:center}
+.episode-add{display:grid;gap:10px;padding:14px;border:1px dashed #5b4d95;border-radius:12px;background:#161b2b}
+.episode-add .episode-add-fields{display:grid;grid-template-columns:90px minmax(0,1fr);gap:8px}
+.episode-add .episode-add-buttons{display:flex;gap:8px;flex-wrap:wrap}
+.episode-add small{color:#8995ac;line-height:1.6}
+.episode-progress{height:7px;border-radius:9px;background:#283048;overflow:hidden}
+.episode-progress span{display:block;height:100%;background:linear-gradient(90deg,#7868ce,#b79afa);transition:width .2s}
+.episode-picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:9px;margin-top:20px}
+.episode-chip{display:flex;align-items:center;gap:10px;text-align:left;padding:11px 13px;border:1px solid #343b55;border-radius:10px;background:#171d2b;color:#c4cbe0;font-size:12px}
+.episode-chip b{display:grid;place-items:center;min-width:28px;height:28px;border-radius:8px;background:#2a2f4a;color:#d6caff;font-size:12px}
+.episode-chip span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.episode-chip:hover:not(:disabled){border-color:#a28afc}
+.episode-chip.active{border-color:#a28afc;background:#2a2547;color:#fff}
+.episode-chip.active b{background:#a28afc;color:#100d29}
+@media(max-width:510px){.episode-row{grid-template-columns:60px minmax(0,1fr)}.episode-row .episode-actions{grid-column:1 / -1;justify-content:flex-end}}
+.episode-missing{display:grid;gap:8px;padding:14px;border:1px solid #8a6f2c;border-radius:12px;background:#2e2815;color:#f1dca0;font-size:12px}.episode-missing small{color:#cdb987}

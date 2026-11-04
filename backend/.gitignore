@@ -1,0 +1,9 @@
+/vendor/
+/.env
+/public/storage
+/storage/*.key
+/storage/framework/cache/data/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/logs/*.log
+/phpunit.xml.bak
