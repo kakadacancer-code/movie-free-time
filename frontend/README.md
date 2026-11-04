@@ -1,4 +1,4 @@
-# FrameVerse frontend
+# MovieFreeTime frontend
 
 React single-page application built with Vite and React Router. Internal navigation uses client-side routes, preserving the shared layout and query cache without reloading the document.
 
