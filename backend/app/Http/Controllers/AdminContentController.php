@@ -12,7 +12,7 @@ use Illuminate\Validation\Rule;
 class AdminContentController {
  public function titles(Request $r){
   $q=MediaTitle::with('genres')->latest();
-  if(in_array($r->query('type'),['movie','anime']))$q->where('content_type',$r->query('type'));
+  if(in_array($r->query('type'),['movie','anime','donghua']))$q->where('content_type',$r->query('type'));
   if($r->filled('status'))$q->where('publication_status',$r->status);
   if($r->filled('q'))$q->whereLike('title','%'.$r->q.'%');
   return $q->paginate(15);
@@ -21,7 +21,7 @@ class AdminContentController {
   return $r->validate([
     'title'=>'required|string|min:1|max:200','original_title'=>'nullable|string|max:200',
     'slug'=>['nullable','alpha_dash','max:220',Rule::unique('media_titles','slug')->ignore($title?->id)],
-    'content_type'=>'required|in:movie,anime','synopsis'=>'required|string|min:15|max:10000',
+    'content_type'=>'required|in:movie,anime,donghua','synopsis'=>'required|string|min:15|max:10000',
     'poster_path'=>'nullable|string|max:2048','backdrop_path'=>'nullable|string|max:2048',
     'video_path'=>['nullable','string','max:255',function($attribute,$value,$fail){if(!preg_match('~^videos/[a-zA-Z0-9]+\.(mp4|webm)$~',$value)||!\Illuminate\Support\Facades\Storage::disk('local')->exists($value))$fail('Please upload a valid movie video first.');}],
     'trailer_url'=>'nullable|url|max:2048','release_date'=>'nullable|date','release_year'=>'nullable|integer|between:1880,2100',
@@ -60,8 +60,9 @@ class AdminContentController {
  public function storeArticle(Request $r){$data=$this->articleData($r);$data['user_id']=$r->user()->id;$data['slug']=$data['slug']??Str::slug($data['title']).'-'.Str::lower(Str::random(5));if($data['publication_status']==='published')$data['published_at']=now();$a=Article::create($data);Activity::record('created','article',$a->id);return response()->json(['message'=>'Article created','data'=>$a],201);}
  public function updateArticle(Request $r,int $id){$a=Article::findOrFail($id);$data=$this->articleData($r,$a);if(empty($data['slug']))unset($data['slug']);if($data['publication_status']==='published'&&!$a->published_at)$data['published_at']=now();$a->update($data);Activity::record('updated','article',$a->id);return response()->json(['message'=>'Article updated','data'=>$a->fresh()]);}
  public function deleteArticle(int $id){Article::findOrFail($id)->delete();Activity::record('deleted','article',$id);return response()->json(['message'=>'Article moved to trash']);}
- public function storeGenre(Request $r){$data=$r->validate(['name'=>'required|string|max:80|unique:genres,name','description'=>'nullable|string|max:500']);$data['slug']=Str::slug($data['name']);$g=Genre::create($data);Activity::record('created','genre',$g->id);return response()->json(['data'=>$g],201);}
- public function updateGenre(Request $r,int $id){$g=Genre::findOrFail($id);$data=$r->validate(['name'=>['required','string','max:80',Rule::unique('genres','name')->ignore($id)],'description'=>'nullable|string|max:500']);$data['slug']=Str::slug($data['name']);$g->update($data);Activity::record('updated','genre',$id);return response()->json(['data'=>$g]);}
+ private function genreImageRules():array {return ['nullable','string','max:2048',function($attribute,$value,$fail){if(!preg_match('~^https://[^\s]+$~',$value)&&(!preg_match('~^media/[a-zA-Z0-9/_-]+\.(jpg|jpeg|png|webp)$~i',$value)||!\Illuminate\Support\Facades\Storage::disk('public')->exists($value)))$fail('Upload a category image or use an HTTPS image URL.');}];}
+ public function storeGenre(Request $r){$data=$r->validate(['name'=>'required|string|max:80|unique:genres,name','description'=>'nullable|string|max:500','image_path'=>$this->genreImageRules()]);$data['slug']=Str::slug($data['name']);$g=Genre::create($data);Activity::record('created','genre',$g->id);return response()->json(['data'=>$g],201);}
+ public function updateGenre(Request $r,int $id){$g=Genre::findOrFail($id);$data=$r->validate(['name'=>['required','string','max:80',Rule::unique('genres','name')->ignore($id)],'description'=>'nullable|string|max:500','image_path'=>$this->genreImageRules()]);$data['slug']=Str::slug($data['name']);$g->update($data);Activity::record('updated','genre',$id);return response()->json(['data'=>$g]);}
  public function deleteGenre(int $id){$g=Genre::findOrFail($id);if($g->titles()->exists())return response()->json(['message'=>'Genre is assigned to titles; remove assignments first.'],422);$g->delete();Activity::record('deleted','genre',$id);return response()->json(['message'=>'Genre removed']);}
  public function storeCategory(Request $r){$d=$r->validate(['name'=>'required|string|max:80|unique:article_categories,name']);$d['slug']=Str::slug($d['name']);$c=ArticleCategory::create($d);Activity::record('created','category',$c->id);return response()->json(['data'=>$c],201);}
  public function deleteCategory(int $id){$c=ArticleCategory::findOrFail($id);if($c->articles()->exists())return response()->json(['message'=>'Category still contains articles'],422);$c->delete();Activity::record('deleted','category',$id);return response()->json(['message'=>'Category removed']);}

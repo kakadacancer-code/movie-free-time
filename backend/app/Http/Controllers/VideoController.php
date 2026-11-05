@@ -5,7 +5,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 class VideoController {
- public function upload(Request $request) {
+  public function upload(Request $request) {
+  $f = $request->file('file');
+  if ($f && !$f->isValid()) return response()->json(['message' => $f->getErrorMessage()], 422);
   $request->validate(['file' => 'required|file|mimetypes:video/mp4,video/webm|max:1048576']);
   $path = $request->file('file')->store('videos', 'local');
   if (!$path) throw ValidationException::withMessages(['file' => 'Video could not be stored. Please try again.']);

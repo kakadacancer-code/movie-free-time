@@ -11,7 +11,7 @@ class CatalogController {
  private function query(Request $r,?string $type=null){
   $q=MediaTitle::published()->with('genres');
   if($type) $q->where('content_type',$type);
-  if($r->filled('type') && !$type && in_array($r->type,['movie','anime'])) $q->where('content_type',$r->type);
+  if($r->filled('type') && !$type && in_array($r->type,['movie','anime','donghua'])) $q->where('content_type',$r->type);
   if($r->filled('q')) $q->where(fn($s)=>$s->whereLike('title','%'.$r->q.'%')->orWhereLike('synopsis','%'.$r->q.'%'));
   if($r->filled('genre')) $q->whereHas('genres',fn($g)=>$g->where('slug',$r->genre));
   if($r->filled('year')) $q->where('release_year',(int)$r->year);
@@ -29,6 +29,7 @@ class CatalogController {
  public function index(Request $r){return TitleResource::collection($this->query($r)->paginate(min(48,max(1,(int)$r->query('per_page',12)))));}
  public function movies(Request $r){return TitleResource::collection($this->query($r,'movie')->paginate(min(48,max(1,(int)$r->query('per_page',12)))));}
  public function anime(Request $r){return TitleResource::collection($this->query($r,'anime')->paginate(min(48,max(1,(int)$r->query('per_page',12)))));}
+ public function donghua(Request $r){return TitleResource::collection($this->query($r,'donghua')->paginate(min(48,max(1,(int)$r->query('per_page',12)))));}
  public function show(string $slug){
   $title=MediaTitle::published()->with('genres','episodes')->where('slug',$slug)->firstOrFail();
   $title->increment('views_count');
@@ -37,18 +38,20 @@ class CatalogController {
  }
  public function genres(){return Genre::withCount(['titles'=>fn($q)=>$q->published()])->orderBy('name')->get();}
  public function categories(){return ArticleCategory::withCount('articles')->orderBy('name')->get();}
- public function settings(){return SiteSetting::whereIn('key',['site_name','tagline','hero_title','hero_subtitle','footer_text','social_instagram','social_youtube'])->pluck('value','key');}
+ public function settings(){return SiteSetting::whereIn('key',['site_name','tagline','hero_title','hero_subtitle','footer_text','social_instagram','social_youtube','discovery_title','discovery_subtitle'])->pluck('value','key');}
  public function home(){
+  $sections=\App\Support\Homepage::sections();
+  $limit=fn($key)=>(int)$sections[$key]['limit'];
   $published=MediaTitle::published()->with('genres');
   $featured=(clone $published)->where('featured',true)->latest()->first()??(clone $published)->latest()->first();
   return response()->json([
+   'sections'=>$sections,
    'featured'=>$featured?(new TitleResource($featured))->resolve():null,
-   'trending'=>TitleResource::collection((clone $published)->orderByDesc('views_count')->limit(8)->get())->resolve(),
-   'movies'=>TitleResource::collection((clone $published)->where('content_type','movie')->latest()->limit(8)->get())->resolve(),
-   'anime'=>TitleResource::collection((clone $published)->where('content_type','anime')->latest()->limit(8)->get())->resolve(),
-   'top_rated'=>TitleResource::collection((clone $published)->orderByDesc('average_rating')->limit(8)->get())->resolve(),
-   'articles'=>Article::published()->with('category','author:id,name')->latest()->limit(4)->get(),
-   'genres'=>Genre::withCount('titles')->orderByDesc('titles_count')->limit(9)->get(),
+   'trending'=>TitleResource::collection((clone $published)->orderByDesc('views_count')->limit($limit('trending'))->get())->resolve(),
+   'movies'=>TitleResource::collection((clone $published)->where('content_type','movie')->latest()->limit($limit('movies'))->get())->resolve(),
+   'anime'=>TitleResource::collection((clone $published)->where('content_type','anime')->latest()->limit($limit('anime'))->get())->resolve(),
+   'donghua'=>TitleResource::collection((clone $published)->where('content_type','donghua')->latest()->limit($limit('donghua'))->get())->resolve(),
+   'genres'=>Genre::withCount(['titles'=>fn($q)=>$q->published()])->orderByDesc('titles_count')->limit($limit('categories'))->get(),
   ]);
  }
  public function articles(Request $r){

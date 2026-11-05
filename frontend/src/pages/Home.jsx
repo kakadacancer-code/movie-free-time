@@ -1,230 +1,51 @@
-
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowRight, ArrowUpRight } from 'lucide-react';
-
+import { ArrowUpRight, Sparkles, Film, Tv, Compass } from 'lucide-react';
 import { get } from '../lib/api';
 import HeroSlider from '../components/HeroSlider';
+import { Heading, TitleGrid, Loader, ErrorState } from '../components/UI';
 
-import {
-  Heading,
-  TitleGrid,
-  Loader,
-  ErrorState,
-} from '../components/UI';
-
-const reveal = {
-  initial: { opacity: 0, y: 17 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true },
-  transition: { duration: 0.55 },
-};
+const sections = [
+  ['trending', 'Trend', '/discover', 'Explore All'],
+  ['categories', 'Category', '/discover', 'All Categories'],
+  ['donghua', 'Donghua', '/donghua', 'All Donghua'],
+  ['movies', 'Movie', '/movies', 'All Movies'],
+  ['anime', 'Anime', '/anime', 'All Anime'],
+];
 
 export default function Home() {
-  // Fetch homepage content from Laravel
-  const {
-    data,
-    error,
-    isLoading,
-    refetch,
-  } = useQuery({
-    queryKey: ['home'],
-    queryFn: () => get('/home'),
-  });
-
-  // Fetch website settings
-  const { data: site } = useQuery({
-    queryKey: ['settings'],
-    queryFn: () => get('/settings'),
-  });
-
+  const { data, error, isLoading, refetch } = useQuery({ queryKey: ['home'], queryFn: () => get('/home') });
+  const { data: site } = useQuery({ queryKey: ['settings'], queryFn: () => get('/settings') });
   if (isLoading) return <Loader />;
-
-  if (error) {
-    return (
-      <div className="container main-pad">
-        <ErrorState error={error} retry={refetch} />
-      </div>
-    );
-  }
-
-  // Featured + trending titles for hero slider
-  const slides = [
-    data?.featured,
-    ...(data?.trending || []),
-  ]
+  if (error) return <div className="container main-pad"><ErrorState error={error} retry={refetch} /></div>;
+  const slides = [data?.featured, ...(data?.trending || [])]
     .filter(Boolean)
-    .filter(
-      (title, index, array) =>
-        array.findIndex((item) => item.id === title.id) === index
-    )
+    .filter((title, index, items) => items.findIndex(item => item.id === title.id) === index)
     .slice(0, 6);
-
-  return (
-    <>
-      {/* HERO SLIDER */}
-      <HeroSlider items={slides} />
-
-      {/* TRENDING */}
-      <motion.section
-        {...reveal}
-        className="container home-section"
-      >
-        <Heading
-          eyebrow="01 / TRENDING"
-          title="Trending Right Now"
-          subtitle="Discover what everyone is watching."
-          link="/discover"
-          linkText="Explore All"
-        />
-
-        <TitleGrid items={data?.trending || []} />
-      </motion.section>
-
-      {/* POPULAR MOVIES */}
-      <motion.section
-        {...reveal}
-        className="container home-section"
-      >
-        <Heading
-          eyebrow="02 / MOVIES"
-          title="Explore Movies"
-          subtitle="Find your next favorite movie."
-          link="/movies"
-          linkText="All Movies"
-        />
-
-        <TitleGrid items={data?.movies || []} />
-      </motion.section>
-
-      {/* POPULAR ANIME */}
-      <motion.section
-        {...reveal}
-        className="container home-section"
-      >
-        <Heading
-          eyebrow="03 / ANIME"
-          title="Discover Anime"
-          subtitle="Explore amazing anime stories."
-          link="/anime"
-          linkText="All Anime"
-        />
-
-        <TitleGrid items={data?.anime || []} />
-      </motion.section>
-
-      {/* TOP RATED */}
-      <motion.section
-        {...reveal}
-        className="container home-section"
-      >
-        <Heading
-          eyebrow="04 / TOP RATED"
-          title="Highest Rated"
-          subtitle="Top-rated movies and anime."
-          link="/discover"
-        />
-
-        <TitleGrid items={data?.top_rated || []} />
-      </motion.section>
-
-      {/* GENRES */}
-      <motion.section
-        {...reveal}
-        className="container home-section"
-      >
-        <Heading
-          eyebrow="05 / CATEGORIES"
-          title="Explore by Genre"
-          subtitle="Find something that matches your mood."
-          link="/discover"
-          linkText="All Genres"
-        />
-
-        <div className="genres-grid">
-          {(data?.genres || []).slice(0, 8).map((genre, index) => (
-            <Link
-              key={genre.id}
-              to={`/discover?genre=${genre.slug}`}
-              className={`genre-tile genre-${index % 5}`}
-            >
-              <span className="genre-symbol">✦</span>
-
-              <span>
-                <b>{genre.name}</b>
-                <small>{genre.titles_count || 0} titles</small>
-              </span>
-
-              <ArrowUpRight size={18} />
-            </Link>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* ARTICLES */}
-      <motion.section
-        {...reveal}
-        className="container home-section"
-      >
-        <Heading
-          eyebrow="06 / ARTICLES"
-          title="Latest News & Articles"
-          subtitle="Entertainment news and stories."
-          link="/articles"
-          linkText="View Articles"
-        />
-
-        <div className="home-articles">
-          {(data?.articles || []).map((article, index) => (
-            <Link
-              key={article.id}
-              to={`/articles/${article.slug}`}
-              className={`home-article article-tone-${index % 3}`}
-            >
-              <div className="article-art">
-                <span>MovieFreeTime EDITORIAL</span>
-              </div>
-
-              <div className="article-details">
-                <span className="eyebrow">
-                  {article.category?.name || 'Article'}
-                </span>
-
-                <h3>{article.title}</h3>
-                <p>{article.excerpt}</p>
-
-                <span className="text-link">
-                  Read Article <ArrowUpRight size={17} />
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </motion.section>
-
-      {/* JOIN COMMUNITY */}
-      <section className="container final-cta">
-        <div>
-          <span className="eyebrow">
-            {site?.site_name || 'MovieFreeTime'} COMMUNITY
-          </span>
-
-          <h2>Your Watchlist. Your Story.</h2>
-
-          <p>
-            Save your favorite movies, discover anime,
-            and share your reviews.
-          </p>
-        </div>
-
-        <Link
-          to="/register"
-          className="btn btn-primary btn-large"
-        >
-          Join MovieFreeTime <ArrowRight size={18} />
-        </Link>
-      </section>
-    </>
-  );
+  return <><HeroSlider items={slides} />{sections.map(([key, label, link, linkText], index) => {
+    const section = data?.sections?.[key];
+    if (!section?.enabled) return null;
+    return <motion.section key={key} initial={{ opacity: 0, y: 17 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.55 }} className="container home-section">
+      <Heading eyebrow={`${String(index + 1).padStart(2, '0')} / ${label.toUpperCase()}`} title={section.title} subtitle={section.subtitle} link={link} linkText={linkText} />
+      {key === 'categories' ? <div className="genres-grid">{(data?.genres || []).map((genre, i) => <Link key={genre.id} to={`/discover?genre=${genre.slug}`} className={`genre-tile genre-${i % 5}`}><span className="genre-symbol" aria-hidden="true">✦</span>{genre.image_url && <img className="genre-background" src={genre.image_url} alt="" loading="lazy" onError={e=>{e.currentTarget.hidden=true}}/>}{genre.image_url && <span className="genre-image-shade" aria-hidden="true"/>}<span className="genre-label"><b>{genre.name}</b><small>{genre.titles_count || 0} titles</small></span><span className="genre-open" aria-hidden="true"><ArrowUpRight size={18} /></span></Link>)}</div> : <TitleGrid items={data?.[key] || []} />}
+    </motion.section>;
+  })}
+    <section className="container home-section home-discovery" aria-labelledby="discovery-heading">
+      <div className="discovery-intro">
+        <span className="eyebrow"><Sparkles size={15} /> YOUR NEXT WATCH STARTS HERE</span>
+        <h2 id="discovery-heading">{site?.discovery_title || 'What are you in the mood for?'}</h2>
+        <p>{site?.discovery_subtitle || 'A little adventure. A different world. A story you didn’t see coming. Follow your mood and find your next favorite.'}</p>
+        <Link className="btn btn-primary" to="/discover"><Compass size={18} /> Find my next watch <ArrowUpRight size={17} /></Link>
+        {!!data?.genres?.length && <div className="discovery-genres" aria-label="Explore genres">{data.genres.slice(0, 5).map(genre => <Link key={genre.id} to={`/discover?genre=${encodeURIComponent(genre.slug)}`}>{genre.name}<ArrowUpRight size={13} /></Link>)}</div>}
+      </div>
+      <div className="discovery-paths">
+        {[
+          ['/movies', Film, '01', 'Make it a movie night', 'Big moments. Unforgettable stories.', 'movies'],
+          ['/anime', Tv, '02', 'Step into another world', 'Find your next anime obsession.', 'anime'],
+          ['/donghua', Sparkles, '03', 'Discover something different', 'Explore the world of Chinese animation.', 'donghua'],
+        ].map(([to, Icon, number, title, description, tone]) => <Link key={to} to={to} className={`discovery-path discovery-path-${tone}`}><span className="discovery-path-icon"><Icon size={24} /></span><span className="discovery-path-copy"><small>{number} / EXPLORE</small><h3>{title}</h3><p>{description}</p></span><ArrowUpRight className="discovery-path-arrow" size={21} /></Link>)}
+      </div>
+    </section>
+  </>;
 }

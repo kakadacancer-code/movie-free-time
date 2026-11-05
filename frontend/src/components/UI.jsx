@@ -12,12 +12,12 @@ export function PosterVisual({ item, large=false }) {
   const [a,b]=gradients[Math.abs(Number(item?.id)||item?.title?.length||0)%gradients.length];
   return <div className={'poster-visual '+(large?'is-large':'')} style={{'--poster-a':a,'--poster-b':b}}>
     {item?.poster_url?<img src={item.poster_url} loading="lazy" alt={`${item.title} poster`} onError={e=>{e.currentTarget.style.display='none'}}/>:null}
-    <div className="poster-shape"><div className="poster-orbit"/><div className="poster-orbit second"/>{item?.content_type==='anime'?<Sparkles size={38}/>:<Film size={38}/>}<strong>{item?.title}</strong><small>MovieFreeTime SELECTION</small></div>
+    <div className="poster-shape"><div className="poster-orbit"/><div className="poster-orbit second"/>{item?.content_type!=='movie'?<Sparkles size={38}/>:<Film size={38}/>}<strong>{item?.title}</strong><small>MovieFreeTime SELECTION</small></div>
   </div>;
 }
 export function TitleCard({ item }) {
   return <Link className="title-card" to={`/title/${item.slug}`}>
-    <div className="title-card-image"><PosterVisual item={item}/><span className="card-tag">{item.content_type==='anime'?'ANIME':'MOVIE'}</span><span className="card-hover"><ArrowUpRight size={23}/></span></div>
+    <div className="title-card-image"><PosterVisual item={item}/><span className="card-tag">{item.content_type?.toUpperCase()}</span><span className="card-hover"><ArrowUpRight size={23}/></span></div>
     <div className="title-card-meta"><span>{item.release_year||'TBA'}</span><span className="dot-sep">·</span><span>{item.genres?.[0]?.name||'Featured'}</span>{Number(item.average_rating)>0&&<span className="rating"><Star size={12} fill="currentColor"/>{Number(item.average_rating).toFixed(1)}</span>}</div>
     <h3 title={item.title}>{item.title}</h3>
   </Link>;

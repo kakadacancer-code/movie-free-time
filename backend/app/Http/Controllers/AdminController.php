@@ -56,13 +56,23 @@ class AdminController {
  }
  public function deleteMedia(int $id){
   $asset=MediaAsset::findOrFail($id);
-  if(MediaTitle::where('poster_path',$asset->path)->orWhere('backdrop_path',$asset->path)->exists()||Article::where('featured_image',$asset->path)->exists())return response()->json(['message'=>'Image is in use and cannot be deleted.'],422);
+  if(Genre::where('image_path',$asset->path)->exists()||MediaTitle::where('poster_path',$asset->path)->orWhere('backdrop_path',$asset->path)->exists()||Article::where('featured_image',$asset->path)->exists())return response()->json(['message'=>'Image is in use and cannot be deleted.'],422);
   Storage::disk('public')->delete($asset->path);$asset->delete();Activity::record('deleted','asset',$id);return response()->json(['message'=>'Image deleted']);
  }
- public function settings(){return SiteSetting::pluck('value','key');}
+ public function settings(){return response()->json(array_merge(SiteSetting::pluck('value','key')->all(),['home_sections'=>\App\Support\Homepage::sections()]));}
  public function updateSettings(Request $r){
-  $keys=['site_name','tagline','hero_title','hero_subtitle','footer_text','social_instagram','social_youtube'];
-  $data=$r->validate(array_fill_keys($keys,'nullable|string|max:500'));
+  $keys=['site_name','tagline','hero_title','hero_subtitle','footer_text','social_instagram','social_youtube','discovery_title','discovery_subtitle'];
+  $rules=array_fill_keys($keys,'nullable|string|max:500');
+  $rules['home_sections']='sometimes|array:trending,movies,anime,categories,donghua';
+  foreach(array_keys(\App\Support\Homepage::defaults()) as $section){
+   $rules["home_sections.$section"]='sometimes|array:title,subtitle,limit,enabled';
+   $rules["home_sections.$section.title"]='required_with:home_sections.'.$section.'|string|max:100';
+   $rules["home_sections.$section.subtitle"]='nullable|string|max:300';
+   $rules["home_sections.$section.limit"]='required_with:home_sections.'.$section.'|integer|between:1,24';
+   $rules["home_sections.$section.enabled"]='required_with:home_sections.'.$section.'|boolean';
+  }
+  $data=$r->validate($rules);
+  if(isset($data['home_sections']))$data['home_sections']=json_encode($data['home_sections']);
   foreach($data as $key=>$value)SiteSetting::updateOrCreate(['key'=>$key],['value'=>$value]);
   Activity::record('updated','settings');return response()->json(['message'=>'Settings saved','data'=>SiteSetting::pluck('value','key')]);
  }
