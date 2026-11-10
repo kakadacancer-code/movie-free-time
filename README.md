@@ -1,5 +1,8 @@
 # FRAMEVERSE — Movie & Anime Discovery Platform
 
+To copy your existing content from PostgreSQL to a friend's MySQL installation,
+follow [the content transfer guide](docs/SHARING.md).
+
 A database-backed entertainment discovery app with **two connected experiences**:
 
 1. **Visitor & member website:** cinematic homepage, searchable movie/anime libraries, combined discovery filters, title details, official trailers, editorial articles, registration/login, profiles, watchlists, favorites, ratings, reviews and article comments.
