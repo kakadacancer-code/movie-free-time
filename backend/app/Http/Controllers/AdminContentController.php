@@ -19,6 +19,7 @@ class AdminContentController {
  }
  private function validateTitle(Request $r,?MediaTitle $title=null):array {
   return $r->validate([
+    ...\App\Support\Playback::rules(),
     'title'=>'required|string|min:1|max:200','original_title'=>'nullable|string|max:200',
     'slug'=>['nullable','alpha_dash','max:220',Rule::unique('media_titles','slug')->ignore($title?->id)],
     'content_type'=>'required|in:movie,anime,donghua','synopsis'=>'required|string|min:15|max:10000',

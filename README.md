@@ -212,11 +212,7 @@ In **Admin → Movies → Add movie** (or edit an existing movie), upload an MP4
 
 Videos are stored in `backend/storage/app/private/videos`, separate from public image uploads. Only published titles whose publication date has arrived can stream. Removing a video from a title detaches it; uploaded files remain on disk, including uploads from canceled forms.
 
-The API accepts files up to 1 GB. PHP and any reverse proxy must also allow the upload size. For local development, run this from `backend` instead of `php artisan serve`:
-
-```bash
-php -d upload_max_filesize=1024M -d post_max_size=1100M -d max_execution_time=0 -d max_input_time=-1 -S localhost:8000 -t public
-```
+Movie and episode uploads accept MP4 and WebM files up to 1 GiB each. The project's `php artisan serve` command sets `upload_max_filesize=1024M` and `post_max_size=1100M` to leave room for multipart form data. If a running local server reports a 2048 KiB limit, restart it from `backend` with `php artisan serve`.
 
 For PHP-FPM, set the same limits in its PHP configuration and restart it. Configure your proxy's request size and timeout as well (for example, Nginx `client_max_body_size 1100m;`). Storage must have enough free space. This version streams local MP4/WebM files; it does not produce adaptive streaming formats.
 

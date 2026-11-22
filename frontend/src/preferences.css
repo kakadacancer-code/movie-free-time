@@ -1,0 +1,33 @@
+.preference-controls{display:flex;align-items:center;gap:3px;flex-shrink:0}
+/* Poster badges need their own colors instead of inheriting the page text. */
+[data-theme="light"] .card-tag{color:#fff;background:#20283c;border-color:#596780}
+[data-theme="light"] .title-card-meta{color:#596780}
+[data-theme="light"] .title-card-meta .rating{color:#855000}
+[data-theme="light"] .genre-tag-row>a,
+[data-theme="light"] .genre-tag-row>span{color:#503880;background:#eee8fa;border-color:#d6cee9}
+.preference-controls select{width:66px;min-height:36px;padding:5px;border:1px solid var(--border);border-radius:8px;color:inherit;background:var(--surface);font-size:12px;cursor:pointer}
+.auth-form-side{position:relative}.auth-preferences{position:absolute;right:20px;top:18px}
+html[lang="km"]{font-family:'Noto Sans Khmer','DM Sans',sans-serif}
+html[lang="km"] :is(h1,h2,h3,h4,.brand,.footer-grid b){font-family:'Noto Sans Khmer',sans-serif;letter-spacing:0;line-height:1.55}
+html[lang="km"] .eyebrow{letter-spacing:.04em;line-height:1.8}
+html[lang="km"] .site-nav{gap:18px}
+:root[data-theme="light"]{color:#20283c;background:#f6f7fb;--bg:#f6f7fb;--surface:#fff;--surface2:#eef0f7;--border:#d4d9e6;--muted:#626e85;--purple:#6944c5;--violet:#7254c9;--cyan:#197888}
+[data-theme="light"] .auth-page{color:#20283c;background:var(--bg);--surface:#fff}
+[data-theme="light"] .site-header{background:#fffffff2;border-color:var(--border)}
+[data-theme="light"] :is(.site-footer,.site-nav.is-open,.filter-panel,.detail-panel,.side-card,.account-info-card,.account-edit-card,.watchlist-row,.modal-panel,.empty-state,.auth-form-side,.home-discovery,.discover-header,.editorial-card,.article-details,.home-article){background:var(--surface);border-color:var(--border);color:#20283c}
+[data-theme="light"] :is(input,textarea,select,.search-field,.field input,.field textarea,.field select,.inline-create input){background:#fff;color:#20283c;border-color:var(--border)}
+[data-theme="light"] :is(.search-field input,.global-search input){color:#20283c}
+[data-theme="light"] :is(.field,.site-nav a,.footer-grid b,.empty-state h3,.section-heading h2,.category-empty h4,.category-admin-details h4,.watchlist-row-body h3){color:#20283c}
+[data-theme="light"] :is(.site-nav a.active,.site-nav a:hover,.text-link,.text-link:hover,.back-link,.brand-highlight){color:#6944c5}
+[data-theme="light"] :is(.icon-btn,.btn-ghost){color:#596780}
+[data-theme="light"] :is(.icon-btn:hover,.btn-ghost:hover,.genre-chips button:hover){background:#e9e5f7;color:#5735ad}
+[data-theme="light"] :is(.btn-outline,.btn-subtle,.genre-chips button,.discovery-path,.discovery-genres a){background:#f2f0fa;border-color:#d6cee9;color:#503880}
+[data-theme="light"] .genre-chips button.selected{background:#e8e0fb;color:#5735ad}
+[data-theme="light"] :is(.footer-grid p,.footer-grid a:not(.brand),.footer-grid span:not(.brand-mark),.discovery-intro>p,.discovery-path-copy p,.discovery-path-copy small,.catalog-result-top,.page-intro p,.field small,.account-edit-card p,.auth-form-wrap>p,.auth-switch,.auth-security){color:#626e85}
+[data-theme="light"] :is(.footer-bottom,.global-search,.filter-top){border-color:var(--border)}
+[data-theme="light"] .skeleton-card{background:linear-gradient(100deg,#e6e9f2,#f8f9fc,#e6e9f2);background-size:200% 100%}
+/* Artwork and video overlays keep their contrast in either theme. */
+[data-theme="light"] :is(.hero-banner,.detail-hero,.genre-tile,.poster-visual,.auth-side,.spotlight-banner){color:#edf0fa}
+@media(max-width:1150px){.header-content{flex-wrap:wrap;gap:12px;padding-block:12px}.site-nav{order:3;width:100%;justify-content:center}.site-nav a.active::after{top:8px}}
+@media(max-width:768px){.header-content{flex-wrap:nowrap;gap:8px}.site-nav{width:auto}.preference-controls select{width:58px}.preference-controls .icon-btn{min-width:30px}.header-actions{flex-wrap:wrap;justify-content:flex-end}.header-content>.brand{flex-shrink:0}}
+@media(max-width:390px){.header-content>.brand{font-size:13px;gap:6px}.header-content>.brand .brand-mark{display:none}.header-actions{gap:0}.header-actions .btn{font-size:11px;padding:8px}.admin-topbar{flex-wrap:wrap;height:auto;min-height:72px;padding-block:10px;gap:8px}}

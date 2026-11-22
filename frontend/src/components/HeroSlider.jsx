@@ -1,80 +1,69 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowUpRight, ChevronLeft, ChevronRight, Play } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight, Clapperboard, Info, Pause, Play, Star } from 'lucide-react';
+import { usePreferences } from '../context/PreferencesContext';
+import { PosterVisual } from './UI';
 
-// Change these if your API uses different field names
-const bgOf = (t) => t?.backdrop_url || t?.banner_url || t?.poster_url || t?.poster || '';
-const posterOf = (t) => t?.poster_url || t?.poster || t?.backdrop_url || '';
+const slideDuration = 7000;
+const reducedMotionQuery = '(prefers-reduced-motion: reduce)';
 
 export default function HeroSlider({ items = [] }) {
-  const [i, setI] = useState(0);
-  const total = items.length;
+  const { t } = usePreferences();
+  const [slide, setSlide] = useState(0);
+  const [rotating, setRotating] = useState(() => !window.matchMedia(reducedMotionQuery).matches);
+  const [hovered, setHovered] = useState(false);
+  const [visible, setVisible] = useState(() => !document.hidden);
+  const count = items.length;
+  const index = count ? slide % count : 0;
+  const advancing = rotating && visible && !hovered && count > 1;
 
   useEffect(() => {
-    if (total < 2) return;
-    const timer = setInterval(() => setI((n) => (n + 1) % total), 6000);
-    return () => clearInterval(timer);
-  }, [total]);
+    const motion = window.matchMedia(reducedMotionQuery);
+    const syncVisibility = () => setVisible(!document.hidden);
+    const syncMotion = () => { if (motion.matches) setRotating(false); };
+    document.addEventListener('visibilitychange', syncVisibility);
+    motion.addEventListener('change', syncMotion);
+    return () => {
+      document.removeEventListener('visibilitychange', syncVisibility);
+      motion.removeEventListener('change', syncMotion);
+    };
+  }, []);
 
-  if (!total) return null;
+  useEffect(() => {
+    if (!advancing) return;
+    const timer = window.setTimeout(() => setSlide((index + 1) % count), slideDuration);
+    return () => window.clearTimeout(timer);
+  }, [advancing, count, index]);
 
-  const item = items[i];
-  const prev = () => setI((i - 1 + total) % total);
-  const next = () => setI((i + 1) % total);
-  const genres = item.genres?.map((g) => g.name).slice(0, 2).join(' / ');
+  const item = items[index];
+  if (!item) return null;
 
-  return (
-    <section className="hero-banner" aria-labelledby="home-hero-heading">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={item.id}
-          className="hero-banner-bg"
-          style={{ backgroundImage: `url(${bgOf(item)})` }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
-        />
-      </AnimatePresence>
-      <div className="hero-banner-shade" />
+  const type = { movie: 'Movie', anime: 'Anime', donghua: 'Donghua' }[item.content_type];
+  const facts = [t(type), item.release_year, ...(item.genres || []).slice(0, 2).map(genre => genre.name)].filter(Boolean);
+  const artwork = item.backdrop_url || item.poster_url;
+  const move = step => setSlide(current => (current + step + count) % count);
+  const rotationLabel = t(rotating ? 'Pause slideshow' : 'Play slideshow');
 
-      <div className="container hero-banner-content">
-      <div className="hero-banner-intro">
-        <span className="eyebrow light"><span className="live-dot" /> YOUR NEXT GREAT STORY</span>
-        <h1 id="home-hero-heading">Find your next<br /><span>obsession.</span></h1>
-        <p>Unforgettable films. Extraordinary anime. Discover stories that stay with you, and keep your next favorite close.</p>
-        <div className="hero-banner-actions">
-          <Link to="/discover" className="btn btn-primary btn-large">Explore titles <ArrowUpRight size={18} /></Link>
-          <Link to="/movies" className="btn btn-hero-ghost btn-large">Browse movies</Link>
-        </div>
-        <div className="hero-banner-note"><span /> Movies, anime & a world of possibilities</div>
-      </div>
-      <div className="hero-banner-card">
-        <div className="hero-card-top">
-          <button className="hero-arrow" onClick={prev} aria-label="Previous">
-            <ChevronLeft size={18} />
-          </button>
-          <Link to={`/title/${item.slug}`} className="hero-card-poster">
-            <img src={posterOf(item)} alt={item.title} />
-          </Link>
-          <button className="hero-arrow" onClick={next} aria-label="Next">
-            <ChevronRight size={18} />
-          </button>
-        </div>
-
-        <h2>{item.title}</h2>
-        <span className="hero-card-meta">
-          {item.release_year}
-          {genres ? ` · ${genres}` : ''}
-        </span>
-        <p>{item.synopsis || item.description}</p>
-
-        <Link to={`/title/${item.slug}`} className="btn btn-primary">
-          <Play size={16} /> Watch now
-        </Link>
-      </div>
-      </div>
-    </section>
-  );
+  return <section className="spotlight" aria-label={t('Featured titles')}
+    onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(true); }}
+    onPointerLeave={() => setHovered(false)}
+    onFocusCapture={event => { if (event.target.matches(':focus-visible') && !event.currentTarget.contains(event.relatedTarget)) setRotating(false); }}>
+    {artwork && <img key={artwork} className="spotlight-art" alt="" src={artwork} fetchPriority="high" onError={event => { event.currentTarget.hidden = true; }} />}
+    <div className="spotlight-copy">
+      <span className="spotlight-label"><Clapperboard size={16} />{t('Featured title')}</span>
+      <h1 id="spotlight-title" title={item.title}>{item.title}</h1>
+      <div className="spotlight-facts">{facts.map(fact => <span key={fact}>{fact}</span>)}{Number(item.average_rating) > 0 && <span className="spotlight-rating"><Star size={14} fill="currentColor" />{Number(item.average_rating).toFixed(1)}</span>}</div>
+    </div>
+    {item.synopsis && <p className="spotlight-summary">{item.synopsis}</p>}
+    <div key={item.id} className="spotlight-poster" aria-hidden="true"><PosterVisual item={item} large /></div>
+    <div className="spotlight-footer">
+      <Link to={'/title/' + item.slug} className="btn btn-primary" aria-label={t('View details') + ' · ' + item.title}><Info size={17} />{t('View details')}</Link>
+      {count > 1 && <div className="spotlight-controls" role="group" aria-label={t('Featured titles')}>
+        <button aria-label={rotationLabel} title={rotationLabel} onClick={() => setRotating(value => !value)}>{rotating ? <Pause size={15} /> : <Play size={15} />}</button>
+        <button aria-label={t('Previous')} onClick={() => move(-1)}><ChevronLeft size={18} /></button>
+        <span aria-live={advancing ? 'off' : 'polite'} aria-atomic="true">{index + 1} / {count}</span>
+        <button aria-label={t('Next')} onClick={() => move(1)}><ChevronRight size={18} /></button>
+      </div>}
+    </div>
+  </section>;
 }

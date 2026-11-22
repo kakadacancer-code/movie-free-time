@@ -1,17 +1,60 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Search, SlidersHorizontal, X, ArrowDownAZ, Film, Tv } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { get } from '../lib/api';
 import { TitleGrid, Loader, ErrorState, EmptyState, Pagination } from '../components/UI';
-export default function Catalog({type}){
- const [params,setParams]=useSearchParams();const [q,setQ]=useState(params.get('q')||'');const [filterOpen,setFilterOpen]=useState(false);
- useEffect(()=>setQ(params.get('q')||''),[params]);
- const change=(key,value)=>{const next=new URLSearchParams(params);value?next.set(key,value):next.delete(key);next.delete('page');setParams(next)};
- useEffect(()=>{const timer=setTimeout(()=>{if(q!==(params.get('q')||''))change('q',q)},400);return()=>clearTimeout(timer)},[q]);
- const endpoint=type==='movie'?'/movies':`/${type}`;const {data,isLoading,error,refetch}=useQuery({queryKey:[endpoint,params.toString()],queryFn:()=>get(endpoint,Object.fromEntries(params))});const {data:genres}=useQuery({queryKey:['genres'],queryFn:()=>get('/genres')});
- return <div className="container catalog-page"><div className="page-intro"><span className="eyebrow">THE MovieFreeTime COLLECTION</span><div className="page-intro-row"><div><h1>{type==='movie'?'The movie library':type==='donghua'?'Donghua universe':'Anime universe'}<span className="accent-dot">.</span></h1><p>{type!=='movie'?'Discover animated worlds, unforgettable heroes and every kind of story.':'Find the perfect film, from heart-racing thrillers to timeless classics.'}</p></div><span className="page-intro-icon">{type!=='movie'?<Tv size={38}/>:<Film size={38}/>}</span></div></div>
- <div className="catalog-controls"><label className="search-field"><Search size={19}/><input value={q} onChange={e=>setQ(e.target.value)} placeholder={`Search ${type==='movie'?'movies':type}...`}/>{q&&<button className="icon-btn" onClick={()=>setQ('')} aria-label="Clear search"><X size={16}/></button>}</label><button className="btn btn-outline filter-toggle" onClick={()=>setFilterOpen(v=>!v)}><SlidersHorizontal size={17}/> Filters</button><div className="sort-control"><ArrowDownAZ size={18}/><select aria-label="Sort titles" value={params.get('sort')||'popular'} onChange={e=>change('sort',e.target.value)}><option value="popular">Most popular</option><option value="rating">Highest rated</option><option value="recent">Recently added</option><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A—Z</option></select></div></div>
- <div className="catalog-body"><aside className={'filter-panel '+(filterOpen?'show-filters':'')}><div className="filter-top"><h3>Refine your search</h3><button className="text-link" onClick={()=>setParams({})}>Clear all <X size={14}/></button></div><label className="field">Genre<select value={params.get('genre')||''} onChange={e=>change('genre',e.target.value)}><option value="">All genres</option>{genres?.map(g=><option key={g.id} value={g.slug}>{g.name}</option>)}</select></label><label className="field">Release year<input type="number" placeholder="e.g. 2024" value={params.get('year')||''} onChange={e=>change('year',e.target.value)}/></label><label className="field">Minimum rating<select value={params.get('min_rating')||''} onChange={e=>change('min_rating',e.target.value)}><option value="">Any rating</option>{[5,6,7,8,9].map(n=><option key={n} value={n}>{n}+ / 10</option>)}</select></label>{type!=='movie'&&<label className="field">Format<select value={params.get('format')||''} onChange={e=>change('format',e.target.value)}><option value="">Any format</option>{['TV','MOVIE','OVA','ONA','SPECIAL'].map(x=><option key={x} value={x}>{x}</option>)}</select></label>}<div className="filters-note">Filters work together so you can find just the right story.</div></aside>
- <div className="catalog-results"><div className="catalog-result-top"><div><b>{isLoading?'Searching...':`${data?.total||0} titles found`}</b><span>Discover something worth watching</span></div>{params.size>0&&<button className="btn btn-subtle btn-small" onClick={()=>setParams({})}>Reset filters <X size={15}/></button>}</div>{isLoading?<Loader/>:error?<ErrorState error={error} retry={refetch}/>:data?.data?.length?<><TitleGrid items={data.data}/><Pagination data={data} onPage={p=>{const next=new URLSearchParams(params);next.set('page',p);setParams(next);window.scrollTo({top:180,behavior:'smooth'})}}/></>:<EmptyState title="No titles match your filters" description="Try a different genre, year or search term."/>}</div></div></div>
+import { usePreferences } from '../context/PreferencesContext';
+
+const labels = { movie: 'Movies', anime: 'Anime', donghua: 'Donghua' };
+const sorts = { popular: 'Most popular', rating: 'Highest rated', recent: 'Recently added', newest: 'Newest first', oldest: 'Oldest first', title: 'Title A—Z' };
+
+export default function Catalog({ type }) {
+  const { t } = usePreferences();
+  const [params, setParams] = useSearchParams();
+  const appliedQuery = params.get('q') || '';
+  const [query, setQuery] = useState(appliedQuery);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  useEffect(() => { setQuery(appliedQuery); }, [appliedQuery]);
+  const endpoint = type === 'movie' ? '/movies' : type ? '/' + type : '/titles';
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: [endpoint, params.toString()], queryFn: () => get(endpoint, Object.fromEntries(params)),
+  });
+  const { data: genres } = useQuery({ queryKey: ['genres'], queryFn: () => get('/genres') });
+  function change(key, value) {
+    const next = new URLSearchParams(params);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    if (key !== 'page') next.delete('page');
+    setParams(next);
+  }
+  function clear() { setQuery(''); setParams({}); }
+  const activeFilters = ['genre', 'year', 'min_rating', 'format', 'type'].filter(key => params.get(key)).length;
+
+  return <div className="container viewer-page">
+    <header className="viewer-heading"><h1>{t(labels[type] || 'Discover')}</h1></header>
+    <div className="library-tools">
+      <form className="library-search" role="search" onSubmit={event => { event.preventDefault(); change('q', query.trim()); }}>
+        <label className="viewer-input"><Search size={19} /><input type="search" aria-label={t('Search titles...')} placeholder={t('Search titles...')} value={query} onChange={event => setQuery(event.target.value)} /></label>
+        <button className="btn btn-primary">{t('Search')}</button>
+      </form>
+      <button className="btn btn-outline" type="button" aria-expanded={filtersOpen} aria-controls="library-filters" onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={17} />{t('Filters')}{activeFilters > 0 && <span>({activeFilters})</span>}</button>
+      <select className="library-sort" aria-label={t('Sort titles')} value={params.get('sort') || 'popular'} onChange={event => change('sort', event.target.value)}>
+        {Object.entries(sorts).map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}
+      </select>
+    </div>
+    <div className="library-filters" id="library-filters" hidden={!filtersOpen}>
+      {!type && <label>{t('Content type')}<select value={params.get('type') || ''} onChange={event => change('type', event.target.value)}><option value="">{t('All stories')}</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{t(label)}</option>)}</select></label>}
+      <label>{t('Genre')}<select value={params.get('genre') || ''} onChange={event => change('genre', event.target.value)}><option value="">{t('All genres')}</option>{genres?.map(genre => <option key={genre.id} value={genre.slug}>{genre.name}</option>)}</select></label>
+      <label>{t('Release year')}<input type="number" placeholder="2024" value={params.get('year') || ''} onChange={event => change('year', event.target.value)} /></label>
+      <label>{t('Minimum rating')}<select value={params.get('min_rating') || ''} onChange={event => change('min_rating', event.target.value)}><option value="">{t('Any rating')}</option>{[5, 6, 7, 8, 9].map(n => <option key={n} value={n}>{n}+ / 10</option>)}</select></label>
+      {type !== 'movie' && <label>{t('Format')}<select value={params.get('format') || ''} onChange={event => change('format', event.target.value)}><option value="">{t('Any format')}</option>{['TV', 'MOVIE', 'OVA', 'ONA', 'SPECIAL'].map(value => <option key={value}>{value}</option>)}</select></label>}
+    </div>
+    <div className="library-count"><span role="status">{isLoading ? t('Searching...') : !error && (data?.total || 0) + ' ' + t('titles found')}{params.get('genre') && ' · ' + (genres?.find(g => g.slug === params.get('genre'))?.name || params.get('genre'))}</span>
+      {params.size > 0 && <button className="text-link" onClick={clear}>{t('Clear all')}</button>}
+    </div>
+    {isLoading ? <Loader /> : error ? <ErrorState error={error} retry={refetch} /> : data?.data?.length ?
+      <><TitleGrid items={data.data} /><Pagination data={data} onPage={page => change('page', page)} /></> :
+      <EmptyState title="No titles match your filters" description="Try a different genre, year or search term." />}
+  </div>;
 }

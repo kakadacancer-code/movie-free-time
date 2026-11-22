@@ -9,6 +9,7 @@ use Illuminate\Validation\ValidationException;
 class EpisodeController {
  private function rules(): array {
   return [
+   ...\App\Support\Playback::rules(),
    'episode_number' => 'nullable|integer|between:1,10000',
    'title' => 'nullable|string|max:160',
    'video_path' => ['nullable', 'string', 'max:255', function ($attribute, $value, $fail) {
@@ -24,7 +25,7 @@ class EpisodeController {
  // Admin: list every episode of a title.
  public function index(int $id) {
   $title = MediaTitle::findOrFail($id);
-  return response()->json(['data' => $title->episodes()->get()->map(fn ($e) => $e->toApi($title->slug))->values()]);
+  return response()->json(['data' => $title->episodes()->get()->map(fn ($e) => [...$e->toApi($title->slug), 'video_sources' => $e->video_sources ?? [], 'subtitles' => $e->subtitles ?? []])->values()]);
  }
  // Admin: add one episode. The number defaults to the next free one.
  public function store(Request $request, int $id) {
@@ -37,6 +38,8 @@ class EpisodeController {
    'episode_number' => $number,
    'title' => $data['title'] ?? null,
    'video_path' => $data['video_path'] ?? null,
+   'video_sources' => $data['video_sources'] ?? [],
+   'subtitles' => $data['subtitles'] ?? [],
   ]);
   Activity::record('created', 'episode', $episode->id, ['title_id' => $title->id, 'episode_number' => $number]);
   return response()->json(['message' => 'Episode added', 'data' => $episode->toApi($title->slug)], 201);

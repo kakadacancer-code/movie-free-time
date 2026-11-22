@@ -38,3 +38,42 @@ To run the feature tests, install the missing test dependency first:
 composer require --dev mockery/mockery:^1.6
 php artisan test
 ```
+
+### Video quality and subtitles
+
+Run `php artisan migrate` after updating the app. In the admin title editor, use
+**Quality & subtitles** to upload MP4/WebM versions (360p through 2160p) and Khmer
+or English WebVTT (`.vtt`, UTF-8, up to 2 MB) subtitle files, then save the title.
+For episodes, use **Save quality & subtitles** in the episode row. Existing videos
+remain available as **Original**; alternate qualities can also be used without an
+original video. Each quality must be uploaded separately; the app does not transcode
+videos or generate translations. Use versions with the same timeline so quality
+switching and subtitle timing stay aligned.
+
+The viewer can switch quality without losing playback position, choose a subtitle
+language or turn subtitles off, and retain these preferences on future visits.
+Only uploaded qualities and subtitle tracks appear as options. Playback files stay
+private and can be streamed only while their parent title is published.
+
+Example WebVTT file:
+
+```text
+WEBVTT
+
+00:00:01.000 --> 00:00:04.000
+Welcome to the movie.
+```
+
+Staff upload subtitles with `POST /api/v1/admin/subtitles` (`file` multipart field).
+Title and episode create/update endpoints accept:
+
+```json
+{
+  "video_sources": [{"quality": "720p", "path": "videos/UPLOAD_ID.mp4"}],
+  "subtitles": [{"language": "en", "label": "English", "path": "subtitles/UPLOAD_ID.vtt"}]
+}
+```
+
+Paths must come from successful uploads. Public title/episode responses expose
+`video_sources` and `subtitles` with playback URLs instead of private storage paths.
+Send empty arrays to detach all alternate qualities or subtitle tracks.

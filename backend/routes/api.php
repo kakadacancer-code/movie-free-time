@@ -8,6 +8,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\AdminContentController;
 use App\Http\Controllers\ImportController;
 use App\Http\Controllers\EpisodeController;
+use App\Http\Controllers\PlaybackController;
 
 Route::prefix('v1')->group(function () {
     Route::get('/home', [CatalogController::class, 'home']);
@@ -18,6 +19,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/titles/{slug}', [CatalogController::class, 'show']);
     Route::get('/titles/{slug}/video', [\App\Http\Controllers\VideoController::class, 'show']);
     Route::get('/titles/{slug}/episodes/{number}/video', [EpisodeController::class, 'video'])->whereNumber('number');
+    Route::get('/titles/{slug}/quality/{quality}', [PlaybackController::class, 'quality']);
+    Route::get('/titles/{slug}/subtitles/{index}', [PlaybackController::class, 'subtitle'])->whereNumber('index');
+    Route::get('/titles/{slug}/episodes/{number}/quality/{quality}', [PlaybackController::class, 'episodeQuality'])->whereNumber('number');
+    Route::get('/titles/{slug}/episodes/{number}/subtitles/{index}', [PlaybackController::class, 'episodeSubtitle'])->whereNumber(['number', 'index']);
     Route::get('/genres', [CatalogController::class, 'genres']);
     Route::get('/categories', [CatalogController::class, 'categories']);
     Route::get('/articles', [CatalogController::class, 'articles']);
@@ -61,6 +66,7 @@ Route::prefix('v1')->group(function () {
             Route::delete('/categories/{id}', [AdminContentController::class, 'deleteCategory']);
             Route::get('/moderation', [AdminController::class, 'moderation']);
             Route::patch('/moderation/{type}/{id}', [AdminController::class, 'moderate']);
+            Route::post('/subtitles', [PlaybackController::class, 'uploadSubtitle']);
             Route::post('/videos', [\App\Http\Controllers\VideoController::class, 'upload']);
             Route::get('/media', [AdminController::class, 'media']);
             Route::post('/media', [AdminController::class, 'upload']);

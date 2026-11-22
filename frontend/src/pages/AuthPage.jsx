@@ -1,7 +1,44 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Clapperboard, ArrowRight, ArrowLeft, LockKeyhole, Sparkles } from 'lucide-react';
+import { usePreferences } from '../context/PreferencesContext';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { readableError } from '../lib/api';
-export default function AuthPage({mode}){const {login,register}=useAuth();const toast=useToast();const navigate=useNavigate();const [params]=useSearchParams();const [busy,setBusy]=useState(false);const [form,setForm]=useState({name:'',email:'',password:'',password_confirmation:''});const [error,setError]=useState('');const isRegister=mode==='register';const edit=e=>setForm(v=>({...v,[e.target.name]:e.target.value}));async function submit(e){e.preventDefault();setBusy(true);setError('');try{const user=isRegister?await register(form):await login({email:form.email,password:form.password});toast(isRegister?'Welcome to MovieFreeTime!':'Welcome back!');const target=params.get('redirect')||(['admin','editor'].includes(user.role)?'/admin':'/account');navigate(target.startsWith('/')&&!target.startsWith('//')?target:'/account',{replace:true})}catch(e){setError(readableError(e))}finally{setBusy(false)}}return <div className="auth-page"><div className="auth-side"><div className="auth-glow"/><Link to="/" className="brand"><span className="brand-mark"><Clapperboard size={22}/></span><span>Movie<span className="brand-highlight">FreeTime</span></span></Link><div><span className="eyebrow">YOUR STORY BEGINS HERE</span><h1>Get lost in <em>great stories.</em></h1><p>Explore new worlds, save what you love, and discover your next favorite thing.</p><div className="auth-decor"><span>✳</span><span>◈</span><span>✦</span></div></div><span className="auth-side-foot">CURATED FOR THE CURIOUS · © MovieFreeTime</span></div><div className="auth-form-side"><Link to="/" className="back-link"><ArrowLeft size={16}/> Return to home</Link><div className="auth-form-wrap"><span className="eyebrow"><Sparkles size={14}/> {isRegister?'JOIN THE COMMUNITY':'GOOD TO SEE YOU AGAIN'}</span><h2>{isRegister?'Create your account':'Welcome back.'}</h2><p>{isRegister?'Your next favorite story is waiting.':'Sign in to continue your MovieFreeTime journey.'}</p><form className="auth-form" onSubmit={submit}>{error&&<div className="form-error" role="alert">{error}</div>}{isRegister&&<label className="field">Full name<input required minLength={2} name="name" placeholder="Your name" value={form.name} onChange={edit}/></label>}<label className="field">Email address<input required type="email" name="email" placeholder="you@example.com" value={form.email} onChange={edit}/></label><label className="field">Password<input required type="password" minLength={isRegister?8:1} name="password" placeholder="Enter your password" value={form.password} onChange={edit}/></label>{isRegister&&<label className="field">Confirm password<input required type="password" minLength={8} name="password_confirmation" placeholder="Repeat your password" value={form.password_confirmation} onChange={edit}/></label>}<button className="btn btn-primary btn-large btn-block" disabled={busy}>{busy?'Please wait...':isRegister?'Create account':'Sign in'} <ArrowRight size={18}/></button></form><p className="auth-switch">{isRegister?'Already have an account?':'New to MovieFreeTime?'} <Link to={isRegister?'/login':'/register'}>{isRegister?'Sign in':'Create an account'}</Link></p><div className="auth-security"><LockKeyhole size={14}/> Your account is protected by secure session authentication.</div></div></div></div>}
+
+export default function AuthPage({ mode }) {
+  const { t } = usePreferences();
+  const { login, register } = useAuth();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const [params] = useSearchParams();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const isRegister = mode === 'register';
+  const redirect = params.get('redirect');
+  const safeTarget = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '';
+
+  async function submit(event) {
+    event.preventDefault();
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    setBusy(true); setError('');
+    try {
+      const user = isRegister ? await register(values) : await login(values);
+      toast(t(isRegister ? 'Welcome to MovieFreeTime!' : 'Welcome back!'));
+      navigate(safeTarget || (['admin', 'editor'].includes(user.role) ? '/admin' : '/account'), { replace: true });
+    } catch (error) { setError(readableError(error)); }
+    finally { setBusy(false); }
+  }
+
+  return <div className="container viewer-auth"><section className="viewer-auth-card">
+    <h1>{t(isRegister ? 'Create your account' : 'Sign in')}</h1>
+    <form onSubmit={submit} className="auth-form">
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {isRegister && <label className="field">{t('Full name')}<input name="name" autoComplete="name" required minLength={2} /></label>}
+      <label className="field">{t('Email address')}<input name="email" type="email" autoComplete="email" required /></label>
+      <label className="field">{t('Password')}<input name="password" type="password" autoComplete={isRegister ? 'new-password' : 'current-password'} required minLength={isRegister ? 8 : 1} /></label>
+      {isRegister && <label className="field">{t('Confirm password')}<input name="password_confirmation" type="password" autoComplete="new-password" required minLength={8} /></label>}
+      <button className="btn btn-primary" disabled={busy}>{t(busy ? 'Please wait...' : isRegister ? 'Create account' : 'Sign in')}</button>
+    </form>
+    <p>{t(isRegister ? 'Already have an account?' : 'New to MovieFreeTime?')} <Link className="text-link" to={(isRegister ? '/login' : '/register') + (safeTarget ? '?redirect=' + encodeURIComponent(safeTarget) : '')}>{t(isRegister ? 'Sign in' : 'Create an account')}</Link></p>
+  </section></div>;
+}

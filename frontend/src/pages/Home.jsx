@@ -1,51 +1,44 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { ArrowUpRight, Sparkles, Film, Tv, Compass } from 'lucide-react';
+import { usePreferences } from '../context/PreferencesContext';
 import { get } from '../lib/api';
+import TitleShelf from '../components/TitleShelf';
 import HeroSlider from '../components/HeroSlider';
-import { Heading, TitleGrid, Loader, ErrorState } from '../components/UI';
+import { EmptyState, ErrorState, Heading, Loader } from '../components/UI';
 
 const sections = [
-  ['trending', 'Trend', '/discover', 'Explore All'],
-  ['categories', 'Category', '/discover', 'All Categories'],
-  ['donghua', 'Donghua', '/donghua', 'All Donghua'],
-  ['movies', 'Movie', '/movies', 'All Movies'],
-  ['anime', 'Anime', '/anime', 'All Anime'],
+  ['trending', '/discover'], ['categories', '/discover'], ['donghua', '/donghua'],
+  ['movies', '/movies'], ['anime', '/anime'],
 ];
 
 export default function Home() {
+  const { t } = usePreferences();
   const { data, error, isLoading, refetch } = useQuery({ queryKey: ['home'], queryFn: () => get('/home') });
   const { data: site } = useQuery({ queryKey: ['settings'], queryFn: () => get('/settings') });
   if (isLoading) return <Loader />;
   if (error) return <div className="container main-pad"><ErrorState error={error} retry={refetch} /></div>;
-  const slides = [data?.featured, ...(data?.trending || [])]
-    .filter(Boolean)
-    .filter((title, index, items) => items.findIndex(item => item.id === title.id) === index)
-    .slice(0, 6);
-  return <><HeroSlider items={slides} />{sections.map(([key, label, link, linkText], index) => {
-    const section = data?.sections?.[key];
-    if (!section?.enabled) return null;
-    return <motion.section key={key} initial={{ opacity: 0, y: 17 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.55 }} className="container home-section">
-      <Heading eyebrow={`${String(index + 1).padStart(2, '0')} / ${label.toUpperCase()}`} title={section.title} subtitle={section.subtitle} link={link} linkText={linkText} />
-      {key === 'categories' ? <div className="genres-grid">{(data?.genres || []).map((genre, i) => <Link key={genre.id} to={`/discover?genre=${genre.slug}`} className={`genre-tile genre-${i % 5}`}><span className="genre-symbol" aria-hidden="true">✦</span>{genre.image_url && <img className="genre-background" src={genre.image_url} alt="" loading="lazy" onError={e=>{e.currentTarget.hidden=true}}/>}{genre.image_url && <span className="genre-image-shade" aria-hidden="true"/>}<span className="genre-label"><b>{genre.name}</b><small>{genre.titles_count || 0} titles</small></span><span className="genre-open" aria-hidden="true"><ArrowUpRight size={18} /></span></Link>)}</div> : <TitleGrid items={data?.[key] || []} />}
-    </motion.section>;
-  })}
-    <section className="container home-section home-discovery" aria-labelledby="discovery-heading">
-      <div className="discovery-intro">
-        <span className="eyebrow"><Sparkles size={15} /> YOUR NEXT WATCH STARTS HERE</span>
-        <h2 id="discovery-heading">{site?.discovery_title || 'What are you in the mood for?'}</h2>
-        <p>{site?.discovery_subtitle || 'A little adventure. A different world. A story you didn’t see coming. Follow your mood and find your next favorite.'}</p>
-        <Link className="btn btn-primary" to="/discover"><Compass size={18} /> Find my next watch <ArrowUpRight size={17} /></Link>
-        {!!data?.genres?.length && <div className="discovery-genres" aria-label="Explore genres">{data.genres.slice(0, 5).map(genre => <Link key={genre.id} to={`/discover?genre=${encodeURIComponent(genre.slug)}`}>{genre.name}<ArrowUpRight size={13} /></Link>)}</div>}
-      </div>
-      <div className="discovery-paths">
-        {[
-          ['/movies', Film, '01', 'Make it a movie night', 'Big moments. Unforgettable stories.', 'movies'],
-          ['/anime', Tv, '02', 'Step into another world', 'Find your next anime obsession.', 'anime'],
-          ['/donghua', Sparkles, '03', 'Discover something different', 'Explore the world of Chinese animation.', 'donghua'],
-        ].map(([to, Icon, number, title, description, tone]) => <Link key={to} to={to} className={`discovery-path discovery-path-${tone}`}><span className="discovery-path-icon"><Icon size={24} /></span><span className="discovery-path-copy"><small>{number} / EXPLORE</small><h3>{title}</h3><p>{description}</p></span><ArrowUpRight className="discovery-path-arrow" size={21} /></Link>)}
-      </div>
-    </section>
-  </>;
+  const slides = [data.featured, ...(data.trending || [])]
+    .filter((item, i, all) => item && all.findIndex(other => other?.id === item.id) === i).slice(0, 6);
+
+  return <div className="container viewer-home">
+    {slides.length ? <HeroSlider items={slides} /> : <EmptyState title="No titles yet" description="Check back soon for new releases." />}
+    {sections.map(([key, link]) => {
+      const section = data.sections?.[key];
+      const items = (key === 'categories' ? data.genres : data[key]) || [];
+      if (!section?.enabled || !items.length) return null;
+      if (key !== 'categories') return <TitleShelf key={key} items={items} title={section.title} subtitle={section.subtitle} link={link} />;
+      return <section key={key} className="viewer-section">
+        <Heading title={section.title} subtitle={section.subtitle} link={link} />
+        <div className="viewer-genres">{items.map(genre =>
+          <Link className="viewer-genre" to={'/discover?genre=' + encodeURIComponent(genre.slug)} key={genre.id}>
+            {genre.image_url && <img alt="" src={genre.image_url} loading="lazy" onError={event => { event.currentTarget.hidden = true; }} />}
+            <span>{genre.name}</span><small>{genre.titles_count || 0} {t('titles')}</small>
+          </Link>)}</div>
+      </section>;
+    })}
+    {(site?.discovery_title || site?.discovery_subtitle) && <section className="viewer-discovery">
+      <div><h2>{t(site.discovery_title || 'Discover')}</h2>{site.discovery_subtitle && <p>{t(site.discovery_subtitle)}</p>}</div>
+      <Link className="btn btn-outline" to="/discover">{t('Explore titles')}</Link>
+    </section>}
+  </div>;
 }

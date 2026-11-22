@@ -1,19 +1,117 @@
 import { useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, BookmarkPlus, Play, Star, CalendarDays, Clock3, Globe, Film, Tv, Send, Heart, Check, ShieldCheck } from 'lucide-react';
+import { BookmarkPlus, Play, Send, Star } from 'lucide-react';
 import { get, send, readableError } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { usePreferences } from '../context/PreferencesContext';
 import { useToast } from '../context/ToastContext';
-import { PosterVisual, TitleGrid, Loader, ErrorState, Heading, ReportButton } from '../components/UI';
+import { ErrorState, Heading, Loader, PosterVisual, ReportButton, TitleGrid } from '../components/UI';
+import VideoPlayer from '../components/VideoPlayer';
 import '../episodes.css';
-export default function Detail(){const {slug}=useParams();const {user}=useAuth();const navigate=useNavigate();const toast=useToast();const client=useQueryClient();const [score,setScore]=useState('8');const [review,setReview]=useState('');const [busy,setBusy]=useState(false);const [videoError,setVideoError]=useState(false);const [epNo,setEpNo]=useState(null);const [autoPlay,setAutoPlay]=useState(false);
- const {data,error,isLoading,refetch}=useQuery({queryKey:['title',slug],queryFn:()=>get(`/titles/${slug}`)});const title=data?.data;const episodes=data?.episodes||[];const currentEp=episodes.find(e=>e.episode_number===epNo&&e.video_url)||episodes.find(e=>e.video_url)||null;
- const {data:reviews}=useQuery({queryKey:['reviews',title?.id],queryFn:()=>get(`/titles/${title.id}/reviews`),enabled:!!title});
- const needAuth=()=>{if(!user){toast('Sign in to save, rate or review','error');navigate(`/login?redirect=${encodeURIComponent(`/title/${slug}`)}`);return false}return true};
- async function action(path,body,message){if(!needAuth())return;setBusy(true);try{const result=await send('post',path,body);toast(message);client.invalidateQueries({queryKey:['watchlist']});if(result?.average_rating!=null)client.setQueryData(['title',slug],old=>old?{...old,data:{...old.data,average_rating:result.average_rating}}:old)}catch(e){toast(readableError(e),'error')}finally{setBusy(false)}}
- if(isLoading)return <Loader/>;if(error)return <div className="container main-pad"><ErrorState error={error} retry={refetch}/></div>;
- const yt=(()=>{try{const u=new URL(title.trailer_url);if(['youtube.com','www.youtube.com','youtu.be'].includes(u.hostname)){const id=u.hostname==='youtu.be'?u.pathname.slice(1):u.searchParams.get('v')||u.pathname.split('/embed/')[1];return id?`https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}`:null}}catch{}return null})();
- return <><section className="detail-hero"><div className="detail-backdrop" style={title.backdrop_url?{backgroundImage:`linear-gradient(0deg,#090d17 0%,rgba(9,13,23,.77) 65%,rgba(9,13,23,.75)),url(${title.backdrop_url})`}:undefined}/><div className="container detail-hero-inner"><nav className="detail-navigation" aria-label="Back to catalog"><Link to={title.content_type==='movie'?'/movies':`/${title.content_type}`} className="back-link"><ArrowLeft size={16}/> Back to {title.content_type==='movie'?'movies':title.content_type}</Link> </nav><div className="detail-hero-layout"><div className="detail-poster"><PosterVisual item={title} large/></div><div className="detail-header-text"><span className="eyebrow">{title.content_type==='movie'?'FEATURE FILM':`${title.content_type.toUpperCase()} SERIES`} · {title.release_year||'TO BE ANNOUNCED'}</span><h1>{title.title}</h1>{title.original_title&&<p className="detail-original">{title.original_title}</p>}<div className="detail-meta"><span><Star size={17} fill="currentColor"/> {Number(title.average_rating)>0?Number(title.average_rating).toFixed(1)+'/10':'Not rated'}</span><span><CalendarDays size={17}/>{title.release_year||'N/A'}</span>{(title.runtime_minutes||title.episodes_count)&&<span><Clock3 size={17}/>{title.content_type!=='movie'?`${title.episodes_count} episodes`:`${title.runtime_minutes} min`}</span>}</div><div className="genre-tag-row">{title.genres?.map(g=><Link to={`/discover?genre=${g.slug}`} key={g.id}>{g.name}</Link>)}</div><p className="detail-synopsis">{title.synopsis}</p><div className="detail-buttons">{(title.video_url||currentEp)&&<a className="btn btn-primary btn-large" href="#watch-movie"><Play size={19}/> {currentEp?'Watch episodes':'Watch movie'}</a>}<button className="btn btn-primary btn-large" disabled={busy} onClick={()=>action('/me/watchlist',{media_title_id:title.id,status:'planned'},'Added to your watchlist')}><BookmarkPlus size={19}/> Add to watchlist</button>{title.trailer_url&&<a className="btn btn-outline btn-large" href={title.trailer_url} target="_blank" rel="noopener noreferrer"><Play size={18}/> Official trailer</a>}</div></div></div></div></section><div className="container detail-content"><div className="detail-main">{currentEp?<section id="watch-movie" className="detail-panel movie-player"><h2>Watch {title.title} <span>· {currentEp.label}</span></h2><div className="video-frame"><video key={currentEp.video_url} controls playsInline autoPlay={autoPlay} preload="metadata" poster={title.backdrop_url||title.poster_url||undefined} onError={()=>setVideoError(true)} onLoadedMetadata={()=>setVideoError(false)} onEnded={()=>{const next=episodes.find(e=>e.episode_number>currentEp.episode_number&&e.video_url);if(next){setAutoPlay(true);setEpNo(next.episode_number)}}} src={currentEp.video_url}>Your browser does not support video playback.</video></div>{videoError&&<p role="alert">This episode could not be played. Try reloading the page or using a browser that supports MP4 or WebM.</p>}<div className="episode-picker">{episodes.map(e=><button type="button" key={e.id} disabled={!e.video_url} className={'episode-chip'+(e.episode_number===currentEp.episode_number?' active':'')} onClick={()=>{setAutoPlay(false);setVideoError(false);setEpNo(e.episode_number)}}><b>{e.episode_number}</b><span>{e.label}</span></button>)}</div></section>:title.video_url?<section id="watch-movie" className="detail-panel movie-player"><h2>Watch {title.title}</h2><div className="video-frame"><video key={title.video_url} controls playsInline preload="metadata" poster={title.backdrop_url||title.poster_url||undefined} onError={()=>setVideoError(true)} onLoadedMetadata={()=>setVideoError(false)} src={title.video_url}>Your browser does not support video playback.</video></div>{videoError&&<p role="alert">This video could not be played. Try reloading the page or using a browser that supports MP4 or WebM.</p>}</section>:<section className="detail-panel"><h2>Movie video coming soon</h2><p>The full video has not been added yet.</p></section>}<section className="detail-panel"><h2>About this story</h2><p>{title.synopsis}</p><div className="fact-grid">{[['Type',title.content_type==='movie'?'Movie':title.content_type==='donghua'?'Donghua':'Anime'],['Release',title.release_date||title.release_year||'TBA'],['Studio',title.studio||'—'],['Origin',title.country||'—'],['Language',title.original_language||'—'],['Age rating',title.age_rating||'—'],['Status',title.release_status||'—']].map(([a,b])=><div key={a}><small>{a}</small><b>{b}</b></div>)}</div></section>{yt&&<section className="detail-panel"><h2>Official trailer</h2><div className="video-frame"><iframe src={yt} title={`${title.title} official trailer`} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen/></div></section>}
- <section className="detail-panel"><h2>Community reviews <span>({reviews?.total||0})</span></h2>{reviews?.data?.length?reviews.data.map(r=><div className="review-item" key={r.id}><b>{r.user?.name||'Reader'}</b><small>{new Date(r.created_at).toLocaleDateString()}</small><p>{r.body}</p><ReportButton reviewId={r.id} user={user}/></div>):<p className="muted">No published reviews yet. Be the first to share your thoughts.</p>}{user&&<form onSubmit={e=>{e.preventDefault();action(`/titles/${title.id}/reviews`,{body:review},'Review submitted for moderation');setReview('')}} className="review-form"><label className="field">Write a review<textarea required minLength={10} rows={4} placeholder="What did you think of this story?" value={review} onChange={e=>setReview(e.target.value)}/></label><button disabled={busy} className="btn btn-primary"><Send size={16}/> Submit review</button></form>}</section></div><aside className="detail-side"><div className="side-card"><span className="eyebrow">YOUR SCORE</span><h3>How would you rate it?</h3><div className="rating-control"><Star fill="currentColor" size={24}/><select aria-label="Your rating" value={score} onChange={e=>setScore(e.target.value)}>{Array.from({length:10},(_,i)=><option key={i+1} value={i+1}>{i+1} / 10</option>)}</select></div><button disabled={busy} onClick={()=>action(`/titles/${title.id}/ratings`,{score:Number(score)},'Your rating was saved')} className="btn btn-primary btn-block">Save rating</button><small>Every rating helps the community.</small></div><div className="side-card side-trust"><ShieldCheck size={23}/><h3>Discover responsibly.</h3><p>Watch available movies here, explore official trailers, and save your next watch to your list.</p></div></aside></div>{data?.related?.length>0&&<section className="container home-section detail-related"><Heading eyebrow="KEEP EXPLORING" title="You might also like"/><TitleGrid items={data.related}/></section>}</>
+
+function trailerEmbed(url) {
+  try {
+    const u = new URL(url);
+    if (!['youtube.com', 'www.youtube.com', 'youtu.be'].includes(u.hostname)) return null;
+    const id = u.hostname === 'youtu.be' ? u.pathname.slice(1) : u.searchParams.get('v') || u.pathname.split('/embed/')[1];
+    return id ? 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) : null;
+  } catch { return null; }
+}
+
+export default function Detail() {
+  const { slug } = useParams();
+  const { t } = usePreferences();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const client = useQueryClient();
+  const toast = useToast();
+  const [score, setScore] = useState('8');
+  const [review, setReview] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [episodeId, setEpisodeId] = useState(null);
+  const [autoPlay, setAutoPlay] = useState(false);
+  const { data, error, isLoading, refetch } = useQuery({ queryKey: ['title', slug], queryFn: () => get('/titles/' + slug) });
+  const title = data?.data;
+  const episodes = data?.episodes || [];
+  const playable = episodes.filter(ep => ep.video_url || ep.video_sources?.length);
+  const episode = playable.find(ep => ep.id === episodeId) || playable[0];
+  const { data: reviews } = useQuery({ queryKey: ['reviews', title?.id], queryFn: () => get('/titles/' + title.id + '/reviews'), enabled: !!title });
+
+  async function action(path, body, message) {
+    if (!user) { navigate('/login?redirect=' + encodeURIComponent('/title/' + slug)); return false; }
+    setBusy(true);
+    try {
+      const result = await send('post', path, body);
+      toast(t(message));
+      if (path === '/me/watchlist') client.invalidateQueries({ queryKey: ['watchlist'] });
+      if (result?.average_rating != null) client.setQueryData(['title', slug], old => old ? { ...old, data: { ...old.data, average_rating: result.average_rating } } : old);
+      return true;
+    } catch (error) { toast(readableError(error), 'error'); return false; }
+    finally { setBusy(false); }
+  }
+
+  if (isLoading) return <Loader />;
+  if (error) return <div className="container main-pad"><ErrorState error={error} retry={refetch} /></div>;
+  const media = episode || ((title.video_url || title.video_sources?.length) ? title : null);
+  const type = { movie: 'Movies', anime: 'Anime', donghua: 'Donghua' }[title.content_type];
+  const collection = title.content_type === 'movie' ? '/movies' : '/' + title.content_type;
+  const trailer = trailerEmbed(title.trailer_url);
+  const facts = [['Release', title.release_date || title.release_year], ['Episodes', title.episodes_count], ['Studio', title.studio], ['Origin', title.country], ['Language', title.original_language], ['Age rating', title.age_rating], ['Status', title.release_status]].filter(([, value]) => value);
+  const episodeLabel = ep => ep.title || (t('Episode') + ' ' + ep.episode_number);
+
+  return <div className="container viewer-page viewer-title">
+    <nav className="viewer-crumbs" aria-label={t('Back to catalog')}><Link to="/">{t('Home')}</Link><span>/</span><Link to={collection}>{t(type)}</Link></nav>
+    <section className="viewer-title-intro">
+      <div className="viewer-title-poster"><PosterVisual item={title} large /></div>
+      <div className="viewer-title-info">
+        <h1>{title.title}</h1>{title.original_title && title.original_title !== title.title && <p className="viewer-original">{title.original_title}</p>}
+        <div className="viewer-facts">
+          {title.release_year && <span>{title.release_year}</span>}
+          {!!title.runtime_minutes && <span>{title.runtime_minutes} {t('min')}</span>}
+          {playable.length > 0 && <span>{playable.length} {t(playable.length === 1 ? 'episode available' : 'episodes available')}</span>}
+          <span><Star size={15} />{Number(title.average_rating) > 0 ? Number(title.average_rating).toFixed(1) + '/10' : t('Not rated')}</span>
+        </div>
+        <div className="genre-tag-row">{title.genres?.map(genre => <Link key={genre.id} to={'/discover?genre=' + encodeURIComponent(genre.slug)}>{genre.name}</Link>)}</div>
+        {title.synopsis && <p className="viewer-synopsis">{title.synopsis}</p>}
+        <div className="detail-buttons">{media && <a className="btn btn-primary" href="#watch-movie"><Play size={17} fill="currentColor" />{t(episode ? 'Watch episodes' : 'Watch movie')}</a>}
+          <button className={'btn ' + (media ? 'btn-outline' : 'btn-primary')} disabled={busy} onClick={() => action('/me/watchlist', { media_title_id: title.id, status: 'planned' }, 'Added to your watchlist')}><BookmarkPlus size={17} />{t('Add to watchlist')}</button>
+          {title.trailer_url && <a className="btn btn-ghost" href={trailer ? '#official-trailer' : title.trailer_url} target={trailer ? undefined : '_blank'} rel="noopener noreferrer">{t('Official trailer')}</a>}
+        </div>
+      </div>
+    </section>
+    <div className="viewer-title-body">
+      <div className="viewer-title-main">
+        <section id="watch-movie" className="viewer-panel">
+          <h2>{media ? (episode ? episodeLabel(episode) : t('Watch movie')) : t('Movie video coming soon')}</h2>
+          {media ? <>
+            <VideoPlayer key={episode?.id || slug} media={media} poster={title.backdrop_url || title.poster_url} autoPlay={autoPlay} onEnded={() => {
+              if (!episode) return;
+              const next = playable.find(ep => ep.episode_number > episode.episode_number);
+              if (next) { setAutoPlay(true); setEpisodeId(next.id); }
+            }} />
+            {episode && <div className="viewer-episodes"><h3>{t('Episodes')}</h3><div className="episode-picker">{episodes.map(ep => <button type="button" key={ep.id} disabled={!ep.video_url && !ep.video_sources?.length} aria-pressed={ep.id === episode.id} className={'episode-chip' + (ep.id === episode.id ? ' active' : '')} onClick={() => { setAutoPlay(false); setEpisodeId(ep.id); }}>
+              {ep.title && <b>{ep.episode_number}</b>}<span>{episodeLabel(ep)}</span>
+            </button>)}</div></div>}
+          </> : <p>{t('The full video has not been added yet.')}</p>}
+        </section>
+        {trailer && <section id="official-trailer" className="viewer-panel"><h2>{t('Official trailer')}</h2><div className="video-frame"><iframe src={trailer} title={title.title + ' · ' + t('Official trailer')} loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin" allowFullScreen /></div></section>}
+        <section className="viewer-panel"><h2>{t('Community reviews')} <small>({reviews?.total || 0})</small></h2>
+          {reviews?.data?.length ? reviews.data.map(r => <div className="review-item" key={r.id}><b>{r.user?.name}</b><small>{new Date(r.created_at).toLocaleDateString()}</small><p>{r.body}</p><ReportButton reviewId={r.id} user={user} /></div>) : <p>{t('No published reviews yet. Be the first to share your thoughts.')}</p>}
+          {user && <form className="review-form" onSubmit={async event => { event.preventDefault(); if (await action('/titles/' + title.id + '/reviews', { body: review }, 'Review submitted for moderation')) setReview(''); }}>
+            <label className="field">{t('Write a review')}<textarea required minLength={10} rows={4} value={review} onChange={event => setReview(event.target.value)} /></label>
+            <button disabled={busy} className="btn btn-outline"><Send size={16} />{t('Submit review')}</button>
+          </form>}
+        </section>
+      </div>
+      <aside className="viewer-title-side">
+        {facts.length > 0 && <section className="viewer-panel"><h2>{t('About this story')}</h2><dl>{facts.map(([name, value]) => <div key={name}><dt>{t(name)}</dt><dd>{value}</dd></div>)}</dl></section>}
+        <section className="viewer-panel"><h2>{t('How would you rate it?')}</h2>
+          <div className="viewer-score"><Star size={18} /><select aria-label={t('Your rating')} value={score} onChange={event => setScore(event.target.value)}>{Array.from({ length: 10 }, (_, i) => <option key={i} value={i + 1}>{i + 1} / 10</option>)}</select></div>
+          <button disabled={busy} className="btn btn-outline btn-block" onClick={() => action('/titles/' + title.id + '/ratings', { score: Number(score) }, 'Your rating was saved')}>{t('Save rating')}</button>
+        </section>
+      </aside>
+    </div>
+    {!!data.related?.length && <section className="viewer-section"><Heading title="You might also like" /><TitleGrid items={data.related} /></section>}
+  </div>;
 }

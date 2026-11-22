@@ -1,20 +1,95 @@
-import { AnimatePresence, motion } from 'framer-motion';
-import AnimatedOutlet from './AnimatedOutlet';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { Bookmark, Menu, Search, X } from 'lucide-react';
 import { get } from '../lib/api';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Clapperboard, Search, UserRound, Menu, X, LogOut, Bookmark, ArrowUpRight, Shield, Film } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { useToast } from '../context/ToastContext';
-const links=[['/','Home'],['/movies','Movies'],['/anime','Anime'],['/donghua','Donghua'],['/discover','Discover'],['/articles','Articles']];
-export default function PublicLayout(){
- const {user,logout}=useAuth();const {data:site}=useQuery({queryKey:['settings'],queryFn:()=>get('/settings')});const toast=useToast();const navigate=useNavigate();const [open,setOpen]=useState(false);const [search,setSearch]=useState(false);const [q,setQ]=useState('');
- const submit=e=>{e.preventDefault();setSearch(false);navigate(`/discover?q=${encodeURIComponent(q)}`)};
- async function handleLogout(){try{await logout();toast('You have logged out');navigate('/')}catch{toast('Could not log out','error')}}
- return <div className="public-app"><header className="site-header"><div className="container header-content"><Link className="brand" to="/" onClick={()=>setOpen(false)}><span className="brand-mark"><Clapperboard size={22}/></span><span>Movie<span className="brand-highlight">FreeTime</span><small>STORIES IN MOTION</small></span></Link>
- <nav className={'site-nav '+(open?'is-open':'')} aria-label="Main navigation">{links.map(([to,name])=><NavLink key={to} end={to==='/'} to={to} onClick={()=>setOpen(false)}>{name}</NavLink>)}{user&&(user.role==='admin'||user.role==='editor')&&<Link className="mobile-admin" to="/admin">Admin panel</Link>}</nav>
- <div className="header-actions"><button className="icon-btn" onClick={()=>setSearch(!search)} aria-label="Search" aria-expanded={search} aria-controls="global-search"><Search size={21}/></button>{user?<><Link className="icon-btn hide-mobile" to="/watchlist" title="Watchlist"><Bookmark size={20}/></Link><Link className="avatar-btn" to="/account" title="My account">{user.name.slice(0,1).toUpperCase()}</Link></>:<Link className="btn btn-outline btn-small" to="/login">Sign in <ArrowUpRight size={15}/></Link>}<button className="icon-btn menu-button" aria-label="Toggle navigation" aria-expanded={open} onClick={()=>setOpen(!open)}>{open?<X size={22}/>:<Menu size={22}/>}</button></div></div>
- <AnimatePresence>{search&&<motion.form id="global-search" initial={{height:0, opacity:0}} animate={{height:"auto", opacity:1}} exit={{height:0, opacity:0}} transition={{duration:0.22}} className="global-search container" onSubmit={submit}><Search size={20}/><input autoFocus placeholder="Search movies, anime, articles..." value={q} onChange={e=>setQ(e.target.value)}/><button className="btn btn-primary">Search</button><button className="icon-btn" type="button" aria-label="Close search" onClick={()=>setSearch(false)}><X size={18}/></button></motion.form>}</AnimatePresence>
- </header><main><AnimatedOutlet/></main><footer className="site-footer"><div className="container"><div className="footer-grid"><div><Link className="brand" to="/"><span className="brand-mark"><Film size={22}/></span><span>Movie<span className="brand-highlight">FreeTime</span></span></Link><p>{site?.footer_text||'Discover remarkable stories, across every screen and every genre. A space for film and anime lovers.'}</p></div><div><b>Explore</b><Link to="/movies">Movies</Link><Link to="/anime">Anime</Link><Link to="/donghua">Donghua</Link><Link to="/discover">Discover</Link></div><div><b>Community</b><Link to="/articles">Editorial</Link><Link to="/watchlist">My watchlist</Link><Link to="/account">My account</Link></div><div><b>Your experience</b><span>Thoughtfully curated titles.</span><span>Official trailers only.</span><span>No unauthorized streaming.</span></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} MovieFreeTime. Made for stories worth discovering.</span><span>DISCOVER · EXPLORE · REMEMBER</span></div></div></footer></div>;
+import { usePreferences } from '../context/PreferencesContext';
+import PreferenceControls from './PreferenceControls';
+import AnimatedOutlet from './AnimatedOutlet';
+import BrandLogo from './BrandLogo';
+
+const links = [['/', 'Home'], ['/movies', 'Movies'], ['/anime', 'Anime'], ['/donghua', 'Donghua'], ['/discover', 'Discover'], ['/articles', 'Articles']];
+
+function Brand() {
+  return <Link className="viewer-brand" to="/" aria-label="MovieFreeTime">
+    <BrandLogo />
+  </Link>;
+}
+
+export default function PublicLayout() {
+  const { user } = useAuth();
+  const { t } = usePreferences();
+  const { data: site } = useQuery({ queryKey: ['settings'], queryFn: () => get('/settings') });
+  const [panel, setPanel] = useState('');
+  const [query, setQuery] = useState('');
+  const searchButton = useRef(null);
+  const menuButton = useRef(null);
+  const header = useRef(null);
+  const { key } = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => { setPanel(''); }, [key]);
+  useEffect(() => {
+    if (!panel) return;
+    function escape(event) {
+      if (event.key === 'Escape') {
+        setPanel('');
+        (panel === 'search' ? searchButton : menuButton).current?.focus();
+      }
+    }
+    function outside(event) {
+      if (!header.current?.contains(event.target)) setPanel('');
+    }
+    document.addEventListener('keydown', escape);
+    document.addEventListener('pointerdown', outside);
+    return () => {
+      document.removeEventListener('keydown', escape);
+      document.removeEventListener('pointerdown', outside);
+    };
+  }, [panel]);
+
+  function submit(event) {
+    event.preventDefault();
+    setPanel('');
+    const term = query.trim();
+    navigate(term ? '/discover?q=' + encodeURIComponent(term) : '/discover');
+  }
+
+  const destinations = links.map(([to, name]) =>
+    <NavLink key={to} to={to} end={to === '/'} onClick={() => setPanel('')}>{t(name)}</NavLink>
+  );
+
+  return <div className="public-app">
+    <a className="viewer-skip" href="#viewer-content">{t('Skip to content')}</a>
+    <header className="viewer-header" ref={header}>
+      <div className="container viewer-bar">
+        <Brand />
+        <nav className="viewer-nav" aria-label={t('Main navigation')}>{destinations}</nav>
+        <div className="viewer-actions">
+          <button className="viewer-icon" ref={searchButton} aria-label={t('Search')} title={t('Search')} aria-expanded={panel === 'search'} aria-controls="viewer-search" onClick={() => setPanel(panel === 'search' ? '' : 'search')}><Search size={20} /></button>
+          <div className="viewer-preferences"><PreferenceControls /></div>
+          {user ? <>
+            <Link className="viewer-icon viewer-saved" to="/watchlist" aria-label={t('My watchlist')} title={t('My watchlist')}><Bookmark size={19} /></Link>
+            <Link className="viewer-avatar" to="/account" aria-label={t('My account')} title={t('My account')}>{user.name.slice(0, 1).toUpperCase()}</Link>
+          </> : <Link className="btn btn-outline viewer-login" to="/login">{t('Sign in')}</Link>}
+          <button ref={menuButton} className="viewer-icon viewer-menu-button" aria-label={t('Toggle navigation')} aria-expanded={panel === 'menu'} aria-controls="viewer-menu" onClick={() => setPanel(panel === 'menu' ? '' : 'menu')}>{panel === 'menu' ? <X size={21} /> : <Menu size={21} />}</button>
+        </div>
+      </div>
+      {panel === 'search' && <form className="viewer-search container" id="viewer-search" role="search" onSubmit={submit}>
+        <label className="viewer-input"><Search size={18} /><input autoFocus type="search" aria-label={t('Search titles...')} placeholder={t('Search titles...')} value={query} onChange={event => setQuery(event.target.value)} /></label>
+        <button className="btn btn-primary">{t('Search')}</button>
+      </form>}
+      {panel === 'menu' && <div className="viewer-mobile container" id="viewer-menu">
+        <nav aria-label={t('Main navigation')}>{destinations}<NavLink to="/watchlist">{t('My watchlist')}</NavLink>{user && <NavLink to="/account">{t('My account')}</NavLink>}{['admin', 'editor'].includes(user?.role) && <NavLink to="/admin">{t('Admin panel')}</NavLink>}</nav>
+        <PreferenceControls />
+      </div>}
+    </header>
+    <main id="viewer-content" tabIndex="-1"><AnimatedOutlet /></main>
+    <footer className="viewer-footer"><div className="container">
+      <div><Brand />{site?.footer_text && <p>{t(site.footer_text)}</p>}</div>
+      <nav aria-label={t('Explore')}><Link to="/discover">{t('Discover')}</Link><Link to="/articles">{t('Articles')}</Link><Link to="/watchlist">{t('My watchlist')}</Link></nav>
+      <small>© {new Date().getFullYear()} MovieFreeTime</small>
+    </div></footer>
+  </div>;
 }
